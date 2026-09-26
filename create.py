@@ -1,7 +1,7 @@
 import os
 
 files = {
-    # 1. GitHub Actions Workflow (использует системный Gradle)
+    # 1. GitHub Actions Workflow
     ".github/workflows/build.yml": """name: Build Android APK
 
 on:
@@ -37,7 +37,7 @@ jobs:
         path: app/build/outputs/apk/debug/app-debug.apk
 """,
 
-    # 2. settings.gradle
+    # 2. settings.gradle (с подключенными репозиториями)
     "settings.gradle": """pluginManagement {
     repositories {
         google()
@@ -46,7 +46,7 @@ jobs:
     }
 }
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
         google()
         mavenCentral()
@@ -56,13 +56,9 @@ rootProject.name = "SystemUtility"
 include ':app'
 """,
 
-    # 3. build.gradle (корневой)
+    # 3. build.gradle (корневой без лишних репозиториев)
     "build.gradle": """buildscript {
     ext.kotlin_version = '1.9.0'
-    repositories {
-        google()
-        mavenCentral()
-    }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.1.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
@@ -70,10 +66,6 @@ include ':app'
 }
 
 allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
 }
 
 task clean(type: Delete) {
@@ -390,4 +382,4 @@ for filepath, content in files.items():
         f.write(content)
     print(f"Создан/обновлен: {filepath}")
 
-print("Все файлы проекта успешно созданы!")
+print("Все файлы проекта успешно обновлены!")
