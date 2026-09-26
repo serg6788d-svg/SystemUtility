@@ -24,7 +24,6 @@ class MainActivity : AppCompatActivity() {
         btnStop = findViewById(R.id.btnStop)
         tvStatus = findViewById(R.id.tvStatus)
 
-        // Начальное состояние
         updateUIState(false)
 
         btnStart.setOnClickListener {
@@ -68,10 +67,10 @@ class MainActivity : AppCompatActivity() {
 
         if (isRunning) {
             tvStatus.text = "Статус: Служба работает (Джиттер активен)"
-            tvStatus.setTextColor(Color.parseColor("#2E7D32")) // Зеленый
+            tvStatus.setTextColor(Color.parseColor("#2E7D32"))
         } else {
             tvStatus.text = "Статус: Остановлено"
-            tvStatus.setTextColor(Color.parseColor("#C62828")) // Красный
+            tvStatus.setTextColor(Color.parseColor("#C62828"))
         }
     }
 }

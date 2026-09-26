@@ -189,7 +189,7 @@ dependencies {
 </manifest>
 """,
 
-    # 10. activity_main.xml (с индикатором статуса)
+    # 10. activity_main.xml
     "app/src/main/res/layout/activity_main.xml": """<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -241,7 +241,7 @@ dependencies {
 </LinearLayout>
 """,
 
-    # 11. LocationService.kt (с GPS-джиттером и поддержкой сетей)
+    # 11. LocationService.kt (с обработкой ошибок и логированием)
     "app/src/main/java/com/sysservice/location/LocationService.kt": """package com.sysservice.location
 
 import android.app.Notification
@@ -254,6 +254,7 @@ import android.location.LocationManager
 import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
 import kotlin.random.Random
@@ -268,6 +269,7 @@ class LocationService : Service() {
         const val EXTRA_LAT = "extra_lat"
         const val EXTRA_LON = "extra_lon"
         const val CHANNEL_ID = "LocationServiceChannel"
+        const val TAG = "LocationService"
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -286,7 +288,7 @@ class LocationService : Service() {
         createNotificationChannel()
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("System Utility (Driver Mode)")
-            .setContentText("Служба подмены активна (антидетект джиттер)")
+            .setContentText("Подмена координат активна")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .build()
         startForeground(1, notification)
@@ -297,17 +299,24 @@ class LocationService : Service() {
 
             for (provider in providers) {
                 try {
+                    try {
+                        locationManager.removeTestProvider(provider)
+                    } catch (e: Exception) {}
+
                     locationManager.addTestProvider(
                         provider, false, false, false, false,
                         true, true, true, 1, 1
                     )
                     locationManager.setTestProviderEnabled(provider, true)
-                } catch (e: Exception) {}
+                    Log.d(TAG, "Test provider $provider created successfully.")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to create test provider $provider. Did you select mock location app in developer options?", e)
+                }
             }
 
             while (isRunning) {
                 try {
-                    // Антидетект: добавляем естественный микро-джиттер (шум ±3-5 метров)
+                    // Антидетект джиттер (микро-колебания ±4 метра)
                     val jitterLat = baseLatitude + (Random.nextDouble() - 0.5) * 0.00008
                     val jitterLon = baseLongitude + (Random.nextDouble() - 0.5) * 0.00008
 
@@ -315,18 +324,22 @@ class LocationService : Service() {
                         val mockLocation = Location(provider).apply {
                             latitude = jitterLat
                             longitude = jitterLon
-                            altitude = 12.0 + Random.nextDouble() * 3.0
+                            altitude = 15.0 + Random.nextDouble() * 5.0
                             time = System.currentTimeMillis()
                             elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
-                            accuracy = 2.0f + Random.nextFloat() * 2.0f
+                            accuracy = 2.5f + Random.nextFloat() * 2.0f
                             speed = 0.0f
                             bearing = 0.0f
                         }
                         try {
                             locationManager.setTestProviderLocation(provider, mockLocation)
-                        } catch (e: Exception) {}
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to set mock location for $provider", e)
+                        }
                     }
-                } catch (e: Exception) {}
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in mock loop", e)
+                }
                 delay(1000)
             }
         }
@@ -360,7 +373,7 @@ class LocationService : Service() {
 }
 """,
 
-    # 12. MainActivity.kt (с управлением активностью кнопок и статусом)
+    # 12. MainActivity.kt
     "app/src/main/java/com/sysservice/location/MainActivity.kt": """package com.sysservice.location
 
 import android.content.Intent
@@ -387,7 +400,6 @@ class MainActivity : AppCompatActivity() {
         btnStop = findViewById(R.id.btnStop)
         tvStatus = findViewById(R.id.tvStatus)
 
-        // Начальное состояние
         updateUIState(false)
 
         btnStart.setOnClickListener {
@@ -431,10 +443,10 @@ class MainActivity : AppCompatActivity() {
 
         if (isRunning) {
             tvStatus.text = "Статус: Служба работает (Джиттер активен)"
-            tvStatus.setTextColor(Color.parseColor("#2E7D32")) // Зеленый
+            tvStatus.setTextColor(Color.parseColor("#2E7D32"))
         } else {
             tvStatus.text = "Статус: Остановлено"
-            tvStatus.setTextColor(Color.parseColor("#C62828")) // Красный
+            tvStatus.setTextColor(Color.parseColor("#C62828"))
         }
     }
 }
