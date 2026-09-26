@@ -37,7 +37,7 @@ jobs:
         path: app/build/outputs/apk/debug/app-debug.apk
 """,
 
-    # 2. settings.gradle (с подключенными репозиториями)
+    # 2. settings.gradle
     "settings.gradle": """pluginManagement {
     repositories {
         google()
@@ -56,9 +56,13 @@ rootProject.name = "SystemUtility"
 include ':app'
 """,
 
-    # 3. build.gradle (корневой без лишних репозиториев)
+    # 3. build.gradle (корневой)
     "build.gradle": """buildscript {
     ext.kotlin_version = '1.9.0'
+    repositories {
+        google()
+        mavenCentral()
+    }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.1.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
@@ -110,7 +114,7 @@ zipStoreBase=GRADLE_USER_HOME
 zipPath=wrapper/dists
 """,
 
-    # 8. app/build.gradle
+    # 8. app/build.gradle (с подключенными корутинами)
     "app/build.gradle": """plugins {
     id 'com.android.application'
     id 'kotlin-android'
@@ -142,6 +146,7 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.10.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 }
 """,
 
