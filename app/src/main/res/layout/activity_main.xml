@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp">
+    <EditText
+        android:id="@+id/etLat"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Широта (например, 55.7558)"
+        android:inputType="numberDecimal|numberSigned" />
+    <EditText
+        android:id="@+id/etLng"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="Долгота (например, 37.6173)"
+        android:inputType="numberDecimal|numberSigned" />
+    <Button
+        android:id="@+id/btnStart"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Запустить" />
+    <Button
+        android:id="@+id/btnStop"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Остановить" />
+</LinearLayout>
