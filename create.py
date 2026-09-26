@@ -1,7 +1,7 @@
 import os
 
 files = {
-    # 1. GitHub Actions Workflow
+    # 1. GitHub Actions Workflow (с фиксированной версией Gradle 8.4)
     ".github/workflows/build.yml": """name: Build Android APK
 
 on:
@@ -26,6 +26,8 @@ jobs:
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.4'
 
     - name: Build APK with Gradle
       run: gradle assembleDebug
@@ -109,12 +111,12 @@ endlocal
     # 7. gradle/wrapper/gradle-wrapper.properties
     "gradle/wrapper/gradle-wrapper.properties": """distributionBase=GRADLE_USER_HOME
 distributionPath=wrapper/dists
-distributionUrl=https\\://services.gradle.org/distributions/gradle-8.0-bin.zip
+distributionUrl=https\\://services.gradle.org/distributions/gradle-8.4-bin.zip
 zipStoreBase=GRADLE_USER_HOME
 zipPath=wrapper/dists
 """,
 
-    # 8. app/build.gradle (с подключенными корутинами)
+    # 8. app/build.gradle
     "app/build.gradle": """plugins {
     id 'com.android.application'
     id 'kotlin-android'
