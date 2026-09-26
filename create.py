@@ -1,7 +1,7 @@
 import os
 
 files = {
-    # 1. GitHub Actions Workflow с v4
+    # 1. GitHub Actions Workflow (использует системный Gradle)
     ".github/workflows/build.yml": """name: Build Android APK
 
 on:
@@ -24,11 +24,11 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
 
     - name: Build APK with Gradle
-      run: ./gradlew assembleDebug
+      run: gradle assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
@@ -384,10 +384,10 @@ class MainActivity : AppCompatActivity() {
 
 for filepath, content in files.items():
     dirname = os.path.dirname(filepath)
-    if dirname:  # Создаем папку только если путь не пустой
+    if dirname:
         os.makedirs(dirname, exist_ok=True)
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(content)
     print(f"Создан/обновлен: {filepath}")
 
-print("Все файлы успешно созданы!")
+print("Все файлы проекта успешно созданы!")
