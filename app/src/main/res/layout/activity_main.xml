@@ -3,30 +3,37 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp">
-    <EditText
-        android:id="@+id/etLat"
+    android:padding="24dp"
+    android:gravity="center">
+
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Широта (например, 55.7558)"
-        android:inputType="numberDecimal|numberSigned" />
+        android:text="Введите координаты (Широта, Долгота):"
+        android:textSize="16sp"
+        android:layout_marginBottom="8dp"/>
+
     <EditText
-        android:id="@+id/etLng"
+        android:id="@+id/etCoordinates"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:hint="Долгота (например, 37.6173)"
-        android:inputType="numberDecimal|numberSigned" />
+        android:hint="55.654885, 37.828655"
+        android:inputType="text"
+        android:layout_marginBottom="24dp"/>
+
     <Button
         android:id="@+id/btnStart"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:text="Запустить" />
+        android:layout_height="60dp"
+        android:text="ЗАПУСТИТЬ"
+        android:textSize="16sp"
+        android:layout_marginBottom="16dp"/>
+
     <Button
         android:id="@+id/btnStop"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Остановить" />
+        android:layout_height="60dp"
+        android:text="ОСТАНОВИТЬ"
+        android:textSize="16sp"/>
+
 </LinearLayout>
