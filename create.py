@@ -1,7 +1,7 @@
 import os
 
 files = {
-    # 1. GitHub Actions Workflow (с фиксированной версией Gradle 8.4)
+    # 1. GitHub Actions Workflow
     ".github/workflows/build.yml": """name: Build Android APK
 
 on:
@@ -189,7 +189,7 @@ dependencies {
 </manifest>
 """,
 
-    # 10. activity_main.xml
+    # 10. activity_main.xml (с индикатором статуса)
     "app/src/main/res/layout/activity_main.xml": """<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -197,6 +197,16 @@ dependencies {
     android:orientation="vertical"
     android:padding="24dp"
     android:gravity="center">
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Статус: Остановлено"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="24dp"/>
 
     <TextView
         android:layout_width="match_parent"
@@ -231,7 +241,7 @@ dependencies {
 </LinearLayout>
 """,
 
-    # 11. LocationService.kt
+    # 11. LocationService.kt (с GPS-джиттером и поддержкой сетей)
     "app/src/main/java/com/sysservice/location/LocationService.kt": """package com.sysservice.location
 
 import android.app.Notification
@@ -246,12 +256,13 @@ import android.os.IBinder
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
+import kotlin.random.Random
 
 class LocationService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private var isRunning = false
-    private var latitude: Double = 55.755864
-    private var longitude: Double = 37.617698
+    private var baseLatitude: Double = 55.755864
+    private var baseLongitude: Double = 37.617698
 
     companion object {
         const val EXTRA_LAT = "extra_lat"
@@ -261,8 +272,8 @@ class LocationService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.let {
-            latitude = it.getDoubleExtra(EXTRA_LAT, latitude)
-            longitude = it.getDoubleExtra(EXTRA_LON, longitude)
+            baseLatitude = it.getDoubleExtra(EXTRA_LAT, baseLatitude)
+            baseLongitude = it.getDoubleExtra(EXTRA_LON, baseLongitude)
         }
         if (!isRunning) {
             isRunning = true
@@ -274,31 +285,47 @@ class LocationService : Service() {
     private fun startForegroundServiceAndMock() {
         createNotificationChannel()
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("System Utility")
-            .setContentText("Идет подмена координат в фоновом режиме")
+            .setContentTitle("System Utility (Driver Mode)")
+            .setContentText("Служба подмены активна (антидетект джиттер)")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .build()
         startForeground(1, notification)
 
         serviceScope.launch {
             val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
-            val provider = LocationManager.GPS_PROVIDER
-            try {
-                locationManager.addTestProvider(provider, false, false, false, false, true, true, true, 0, 1)
-                locationManager.setTestProviderEnabled(provider, true)
-            } catch (e: Exception) {}
+            val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+
+            for (provider in providers) {
+                try {
+                    locationManager.addTestProvider(
+                        provider, false, false, false, false,
+                        true, true, true, 1, 1
+                    )
+                    locationManager.setTestProviderEnabled(provider, true)
+                } catch (e: Exception) {}
+            }
 
             while (isRunning) {
                 try {
-                    val mockLocation = Location(provider).apply {
-                        this.latitude = this@LocationService.latitude
-                        this.longitude = this@LocationService.longitude
-                        altitude = 0.0
-                        time = System.currentTimeMillis()
-                        elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
-                        accuracy = 3.0f
+                    // Антидетект: добавляем естественный микро-джиттер (шум ±3-5 метров)
+                    val jitterLat = baseLatitude + (Random.nextDouble() - 0.5) * 0.00008
+                    val jitterLon = baseLongitude + (Random.nextDouble() - 0.5) * 0.00008
+
+                    for (provider in providers) {
+                        val mockLocation = Location(provider).apply {
+                            latitude = jitterLat
+                            longitude = jitterLon
+                            altitude = 12.0 + Random.nextDouble() * 3.0
+                            time = System.currentTimeMillis()
+                            elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+                            accuracy = 2.0f + Random.nextFloat() * 2.0f
+                            speed = 0.0f
+                            bearing = 0.0f
+                        }
+                        try {
+                            locationManager.setTestProviderLocation(provider, mockLocation)
+                        } catch (e: Exception) {}
                     }
-                    locationManager.setTestProviderLocation(provider, mockLocation)
                 } catch (e: Exception) {}
                 delay(1000)
             }
@@ -307,7 +334,11 @@ class LocationService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val serviceChannel = NotificationChannel(CHANNEL_ID, "Location Mock Service Channel", NotificationManager.IMPORTANCE_DEFAULT)
+            val serviceChannel = NotificationChannel(
+                CHANNEL_ID,
+                "Driver Location Mock Service",
+                NotificationManager.IMPORTANCE_LOW
+            )
             val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(serviceChannel)
         }
@@ -317,34 +348,47 @@ class LocationService : Service() {
         super.onDestroy()
         isRunning = false
         serviceScope.cancel()
-        try {
-            val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
-            locationManager.removeTestProvider(LocationManager.GPS_PROVIDER)
-        } catch (e: Exception) {}
+        val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+        for (provider in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)) {
+            try {
+                locationManager.removeTestProvider(provider)
+            } catch (e: Exception) {}
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 }
 """,
 
-    # 12. MainActivity.kt
+    # 12. MainActivity.kt (с управлением активностью кнопок и статусом)
     "app/src/main/java/com/sysservice/location/MainActivity.kt": """package com.sysservice.location
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var etCoordinates: EditText
+    private lateinit var btnStart: Button
+    private lateinit var btnStop: Button
+    private lateinit var tvStatus: TextView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val etCoordinates = findViewById<EditText>(R.id.etCoordinates)
-        val btnStart = findViewById<Button>(R.id.btnStart)
-        val btnStop = findViewById<Button>(R.id.btnStop)
+        etCoordinates = findViewById(R.id.etCoordinates)
+        btnStart = findViewById(R.id.btnStart)
+        btnStop = findViewById(R.id.btnStop)
+        tvStatus = findViewById(R.id.tvStatus)
+
+        // Начальное состояние
+        updateUIState(false)
 
         btnStart.setOnClickListener {
             val input = etCoordinates.text.toString().trim()
@@ -362,7 +406,8 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         startService(serviceIntent)
                     }
-                    Toast.makeText(this, "Подмена запущена в фоне!", Toast.LENGTH_SHORT).show()
+                    updateUIState(true)
+                    Toast.makeText(this, "Служба запущена в режиме водителя!", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "Неверный формат чисел", Toast.LENGTH_SHORT).show()
                 }
@@ -374,7 +419,22 @@ class MainActivity : AppCompatActivity() {
         btnStop.setOnClickListener {
             val serviceIntent = Intent(this, LocationService::class.java)
             stopService(serviceIntent)
+            updateUIState(false)
             Toast.makeText(this, "Подмена остановлена", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun updateUIState(isRunning: Boolean) {
+        btnStart.isEnabled = !isRunning
+        btnStop.isEnabled = isRunning
+        etCoordinates.isEnabled = !isRunning
+
+        if (isRunning) {
+            tvStatus.text = "Статус: Служба работает (Джиттер активен)"
+            tvStatus.setTextColor(Color.parseColor("#2E7D32")) // Зеленый
+        } else {
+            tvStatus.text = "Статус: Остановлено"
+            tvStatus.setTextColor(Color.parseColor("#C62828")) // Красный
         }
     }
 }

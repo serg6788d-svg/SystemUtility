@@ -12,12 +12,13 @@ import android.os.IBinder
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
+import kotlin.random.Random
 
 class LocationService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private var isRunning = false
-    private var latitude: Double = 55.755864
-    private var longitude: Double = 37.617698
+    private var baseLatitude: Double = 55.755864
+    private var baseLongitude: Double = 37.617698
 
     companion object {
         const val EXTRA_LAT = "extra_lat"
@@ -27,8 +28,8 @@ class LocationService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.let {
-            latitude = it.getDoubleExtra(EXTRA_LAT, latitude)
-            longitude = it.getDoubleExtra(EXTRA_LON, longitude)
+            baseLatitude = it.getDoubleExtra(EXTRA_LAT, baseLatitude)
+            baseLongitude = it.getDoubleExtra(EXTRA_LON, baseLongitude)
         }
         if (!isRunning) {
             isRunning = true
@@ -40,31 +41,47 @@ class LocationService : Service() {
     private fun startForegroundServiceAndMock() {
         createNotificationChannel()
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("System Utility")
-            .setContentText("Идет подмена координат в фоновом режиме")
+            .setContentTitle("System Utility (Driver Mode)")
+            .setContentText("Служба подмены активна (антидетект джиттер)")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .build()
         startForeground(1, notification)
 
         serviceScope.launch {
             val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
-            val provider = LocationManager.GPS_PROVIDER
-            try {
-                locationManager.addTestProvider(provider, false, false, false, false, true, true, true, 0, 1)
-                locationManager.setTestProviderEnabled(provider, true)
-            } catch (e: Exception) {}
+            val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+
+            for (provider in providers) {
+                try {
+                    locationManager.addTestProvider(
+                        provider, false, false, false, false,
+                        true, true, true, 1, 1
+                    )
+                    locationManager.setTestProviderEnabled(provider, true)
+                } catch (e: Exception) {}
+            }
 
             while (isRunning) {
                 try {
-                    val mockLocation = Location(provider).apply {
-                        this.latitude = this@LocationService.latitude
-                        this.longitude = this@LocationService.longitude
-                        altitude = 0.0
-                        time = System.currentTimeMillis()
-                        elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
-                        accuracy = 3.0f
+                    // Антидетект: добавляем естественный микро-джиттер (шум ±3-5 метров)
+                    val jitterLat = baseLatitude + (Random.nextDouble() - 0.5) * 0.00008
+                    val jitterLon = baseLongitude + (Random.nextDouble() - 0.5) * 0.00008
+
+                    for (provider in providers) {
+                        val mockLocation = Location(provider).apply {
+                            latitude = jitterLat
+                            longitude = jitterLon
+                            altitude = 12.0 + Random.nextDouble() * 3.0
+                            time = System.currentTimeMillis()
+                            elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+                            accuracy = 2.0f + Random.nextFloat() * 2.0f
+                            speed = 0.0f
+                            bearing = 0.0f
+                        }
+                        try {
+                            locationManager.setTestProviderLocation(provider, mockLocation)
+                        } catch (e: Exception) {}
                     }
-                    locationManager.setTestProviderLocation(provider, mockLocation)
                 } catch (e: Exception) {}
                 delay(1000)
             }
@@ -73,7 +90,11 @@ class LocationService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val serviceChannel = NotificationChannel(CHANNEL_ID, "Location Mock Service Channel", NotificationManager.IMPORTANCE_DEFAULT)
+            val serviceChannel = NotificationChannel(
+                CHANNEL_ID,
+                "Driver Location Mock Service",
+                NotificationManager.IMPORTANCE_LOW
+            )
             val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(serviceChannel)
         }
@@ -83,10 +104,12 @@ class LocationService : Service() {
         super.onDestroy()
         isRunning = false
         serviceScope.cancel()
-        try {
-            val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
-            locationManager.removeTestProvider(LocationManager.GPS_PROVIDER)
-        } catch (e: Exception) {}
+        val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+        for (provider in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)) {
+            try {
+                locationManager.removeTestProvider(provider)
+            } catch (e: Exception) {}
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
