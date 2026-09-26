@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
         btnStop = findViewById(R.id.btnStop)
         tvStatus = findViewById(R.id.tvStatus)
 
-        updateUIState(false)
+        updateUIState(LocationService.isServiceRunning)
 
         btnStart.setOnClickListener {
             val input = etCoordinates.text.toString().trim()
@@ -58,6 +58,12 @@ class MainActivity : AppCompatActivity() {
             updateUIState(false)
             Toast.makeText(this, "Подмена остановлена", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Синхронизируем интерфейс при возврате в приложение или смене режима экрана (разделение экрана)
+        updateUIState(LocationService.isServiceRunning)
     }
 
     private fun updateUIState(isRunning: Boolean) {

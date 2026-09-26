@@ -22,6 +22,7 @@ class LocationService : Service() {
     private var baseLongitude: Double = 37.617698
 
     companion object {
+        var isServiceRunning = false
         const val EXTRA_LAT = "extra_lat"
         const val EXTRA_LON = "extra_lon"
         const val CHANNEL_ID = "LocationServiceChannel"
@@ -30,11 +31,14 @@ class LocationService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.let {
-            baseLatitude = it.getDoubleExtra(EXTRA_LAT, baseLatitude)
-            baseLongitude = it.getDoubleExtra(EXTRA_LON, baseLongitude)
+            if (it.hasExtra(EXTRA_LAT) && it.hasExtra(EXTRA_LON)) {
+                baseLatitude = it.getDoubleExtra(EXTRA_LAT, baseLatitude)
+                baseLongitude = it.getDoubleExtra(EXTRA_LON, baseLongitude)
+            }
         }
         if (!isRunning) {
             isRunning = true
+            isServiceRunning = true
             startForegroundServiceAndMock()
         }
         return START_STICKY
@@ -64,15 +68,13 @@ class LocationService : Service() {
                         true, true, true, 1, 1
                     )
                     locationManager.setTestProviderEnabled(provider, true)
-                    Log.d(TAG, "Test provider $provider created successfully.")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to create test provider $provider. Did you select mock location app in developer options?", e)
+                    Log.e(TAG, "Failed to create test provider $provider", e)
                 }
             }
 
             while (isRunning) {
                 try {
-                    // Антидетект джиттер (микро-колебания ±4 метра)
                     val jitterLat = baseLatitude + (Random.nextDouble() - 0.5) * 0.00008
                     val jitterLon = baseLongitude + (Random.nextDouble() - 0.5) * 0.00008
 
@@ -89,13 +91,9 @@ class LocationService : Service() {
                         }
                         try {
                             locationManager.setTestProviderLocation(provider, mockLocation)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to set mock location for $provider", e)
-                        }
+                        } catch (e: Exception) {}
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error in mock loop", e)
-                }
+                } catch (e: Exception) {}
                 delay(1000)
             }
         }
@@ -116,6 +114,7 @@ class LocationService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
+        isServiceRunning = false
         serviceScope.cancel()
         val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
         for (provider in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)) {
