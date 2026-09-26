@@ -1,7 +1,7 @@
 import os
 
 files = {
-    # Файл конфигурации GitHub Actions с исправленной версией v4
+    # 1. GitHub Actions Workflow с v4
     ".github/workflows/build.yml": """name: Build Android APK
 
 on:
@@ -37,6 +37,88 @@ jobs:
         path: app/build/outputs/apk/debug/app-debug.apk
 """,
 
+    # 2. settings.gradle
+    "settings.gradle": """pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "SystemUtility"
+include ':app'
+""",
+
+    # 3. build.gradle (корневой)
+    "build.gradle": """buildscript {
+    ext.kotlin_version = '1.9.0'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.1.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+""",
+
+    # 4. gradle.properties
+    "gradle.properties": """org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+android.useAndroidX=true
+android.enableJetifier=true
+""",
+
+    # 5. gradlew (Bash скрипт для Linux)
+    "gradlew": """#!/usr/bin/env sh
+org_gradle_java_home=""
+if [ -n "$JAVA_HOME" ] ; then
+    if [ -x "$JAVA_HOME/bin/java" ] ; then
+        org_gradle_java_home="$JAVA_HOME"
+    fi
+fi
+exec java $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS "-Dorg.gradle.appname=gradlew" -classpath "$PRGDIR/gradle/wrapper/gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain "$@"
+""",
+
+    # 6. gradlew.bat (для Windows)
+    "gradlew.bat": """@if "%DEBUG%" == "" @echo off
+setlocal
+set DIRNAME=%~dp5
+if "%DIRNAME%" == "" set DIRNAME=.
+set APP_BASE_NAME=%~n0
+set APP_HOME=%DIRNAME%
+@rem Execute Gradle
+java %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%APP_HOME%\\gradle\\wrapper\\gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain %*
+endlocal
+""",
+
+    # 7. gradle/wrapper/gradle-wrapper.properties
+    "gradle/wrapper/gradle-wrapper.properties": """distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\\://services.gradle.org/distributions/gradle-8.0-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipPath=wrapper/dists
+""",
+
+    # 8. app/build.gradle
     "app/build.gradle": """plugins {
     id 'com.android.application'
     id 'kotlin-android'
@@ -71,6 +153,7 @@ dependencies {
 }
 """,
 
+    # 9. AndroidManifest.xml
     "app/src/main/AndroidManifest.xml": """<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
@@ -107,6 +190,7 @@ dependencies {
 </manifest>
 """,
 
+    # 10. activity_main.xml
     "app/src/main/res/layout/activity_main.xml": """<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -148,6 +232,7 @@ dependencies {
 </LinearLayout>
 """,
 
+    # 11. LocationService.kt
     "app/src/main/java/com/sysservice/location/LocationService.kt": """package com.sysservice.location
 
 import android.app.Notification
@@ -243,6 +328,7 @@ class LocationService : Service() {
 }
 """,
 
+    # 12. MainActivity.kt
     "app/src/main/java/com/sysservice/location/MainActivity.kt": """package com.sysservice.location
 
 import android.content.Intent
@@ -297,9 +383,11 @@ class MainActivity : AppCompatActivity() {
 }
 
 for filepath, content in files.items():
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    dirname = os.path.dirname(filepath)
+    if dirname:  # Создаем папку только если путь не пустой
+        os.makedirs(dirname, exist_ok=True)
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(content)
-    print(f"Обновлен/создан файл: {filepath}")
+    print(f"Создан/обновлен: {filepath}")
 
-print("Готово! Все файлы записаны успешно.")
+print("Все файлы успешно созданы!")
