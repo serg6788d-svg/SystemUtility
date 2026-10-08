@@ -162,6 +162,7 @@ dependencies {
     <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION" tools:ignore="MockLocation" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" tools:ignore="ForegroundServicePermission" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:allowBackup="true"
@@ -241,7 +242,7 @@ dependencies {
 </LinearLayout>
 """,
 
-    # 11. LocationService.kt (со статическим флагом состояния)
+    # 11. LocationService.kt (с защитой от сброса провайдеров системой)
     "app/src/main/java/com/sysservice/location/LocationService.kt": """package com.sysservice.location
 
 import android.app.Notification
@@ -253,6 +254,7 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -264,6 +266,7 @@ class LocationService : Service() {
     private var isRunning = false
     private var baseLatitude: Double = 55.755864
     private var baseLongitude: Double = 37.617698
+    private var wakeLock: PowerManager.WakeLock? = null
 
     companion object {
         var isServiceRunning = false
@@ -292,33 +295,55 @@ class LocationService : Service() {
         createNotificationChannel()
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("System Utility (Driver Mode)")
-            .setContentText("Подмена координат активна")
+            .setContentText("Подмена координат активна (антисброс)")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .build()
         startForeground(1, notification)
+
+        // Держим процессор бодрствующим, чтобы служба не засыпала в фоне
+        try {
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "SystemUtility::Wakelock")
+            wakeLock?.acquire(10 * 60 * 60 * 1000L) // 10 часов макс
+        } catch (e: Exception) {}
 
         serviceScope.launch {
             val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
             val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
 
-            for (provider in providers) {
-                try {
+            fun setupProviders() {
+                for (provider in providers) {
                     try {
-                        locationManager.removeTestProvider(provider)
-                    } catch (e: Exception) {}
+                        try {
+                            locationManager.removeTestProvider(provider)
+                        } catch (e: Exception) {}
 
-                    locationManager.addTestProvider(
-                        provider, false, false, false, false,
-                        true, true, true, 1, 1
-                    )
-                    locationManager.setTestProviderEnabled(provider, true)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to create test provider $provider", e)
+                        locationManager.addTestProvider(
+                            provider, false, false, false, false,
+                            true, true, true, 1, 1
+                        )
+                        locationManager.setTestProviderEnabled(provider, true)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to setup provider $provider", e)
+                    }
                 }
             }
 
+            setupProviders()
+            var counter = 0
+
             while (isRunning) {
                 try {
+                    // Каждые 5 секунд принудительно переподтверждаем провайдеры на случай сброса системой
+                    if (counter % 5 == 0) {
+                        for (provider in providers) {
+                            try {
+                                locationManager.setTestProviderEnabled(provider, true)
+                            } catch (e: Exception) {}
+                        }
+                    }
+                    counter++
+
                     val jitterLat = baseLatitude + (Random.nextDouble() - 0.5) * 0.00008
                     val jitterLon = baseLongitude + (Random.nextDouble() - 0.5) * 0.00008
 
@@ -335,7 +360,10 @@ class LocationService : Service() {
                         }
                         try {
                             locationManager.setTestProviderLocation(provider, mockLocation)
-                        } catch (e: Exception) {}
+                        } catch (e: Exception) {
+                            // Если провайдер слетел — пробуем восстановить его на лету
+                            setupProviders()
+                        }
                     }
                 } catch (e: Exception) {}
                 delay(1000)
@@ -359,6 +387,9 @@ class LocationService : Service() {
         super.onDestroy()
         isRunning = false
         isServiceRunning = false
+        try {
+            wakeLock?.release()
+        } catch (e: Exception) {}
         serviceScope.cancel()
         val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
         for (provider in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)) {
@@ -372,7 +403,7 @@ class LocationService : Service() {
 }
 """,
 
-    # 12. MainActivity.kt (с проверкой onResume для синхронизации)
+    # 12. MainActivity.kt
     "app/src/main/java/com/sysservice/location/MainActivity.kt": """package com.sysservice.location
 
 import android.content.Intent
@@ -418,12 +449,12 @@ class MainActivity : AppCompatActivity() {
                         startService(serviceIntent)
                     }
                     updateUIState(true)
-                    Toast.makeText(this, "Служба запущена в режиме водителя!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Служба запущена в режиме антисброса!", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "Неверный формат чисел", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                Toast.makeText(this, "Введите координаты в формате: 55.654885, 37.828655", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Введите координаты в формате: 55.654885, 37.828655", Toast.LENGTH_LONG).show( )
             }
         }
 
@@ -437,7 +468,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Синхронизируем интерфейс при возврате в приложение или смене режима экрана (разделение экрана)
         updateUIState(LocationService.isServiceRunning)
     }
 
@@ -447,7 +477,7 @@ class MainActivity : AppCompatActivity() {
         etCoordinates.isEnabled = !isRunning
 
         if (isRunning) {
-            tvStatus.text = "Статус: Служба работает (Джиттер активен)"
+            tvStatus.text = "Статус: Работает (Защита от сброса)"
             tvStatus.setTextColor(Color.parseColor("#2E7D32"))
         } else {
             tvStatus.text = "Статус: Остановлено"

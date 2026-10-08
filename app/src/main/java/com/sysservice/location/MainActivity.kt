@@ -43,12 +43,12 @@ class MainActivity : AppCompatActivity() {
                         startService(serviceIntent)
                     }
                     updateUIState(true)
-                    Toast.makeText(this, "Служба запущена в режиме водителя!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Служба запущена в режиме антисброса!", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "Неверный формат чисел", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                Toast.makeText(this, "Введите координаты в формате: 55.654885, 37.828655", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Введите координаты в формате: 55.654885, 37.828655", Toast.LENGTH_LONG).show( )
             }
         }
 
@@ -62,7 +62,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Синхронизируем интерфейс при возврате в приложение или смене режима экрана (разделение экрана)
         updateUIState(LocationService.isServiceRunning)
     }
 
@@ -72,7 +71,7 @@ class MainActivity : AppCompatActivity() {
         etCoordinates.isEnabled = !isRunning
 
         if (isRunning) {
-            tvStatus.text = "Статус: Служба работает (Джиттер активен)"
+            tvStatus.text = "Статус: Работает (Защита от сброса)"
             tvStatus.setTextColor(Color.parseColor("#2E7D32"))
         } else {
             tvStatus.text = "Статус: Остановлено"
