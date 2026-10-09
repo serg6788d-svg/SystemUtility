@@ -43,12 +43,12 @@ class MainActivity : AppCompatActivity() {
                         startService(serviceIntent)
                     }
                     updateUIState(true)
-                    Toast.makeText(this, "Служба запущена в режиме антисброса!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Координаты переданы в службу!", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "Неверный формат чисел", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                Toast.makeText(this, "Введите координаты в формате: 55.654885, 37.828655", Toast.LENGTH_LONG).show( )
+                Toast.makeText(this, "Введите координаты в формате: 55.654885, 37.828655", Toast.LENGTH_LONG).show()
             }
         }
 
@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity() {
         etCoordinates.isEnabled = !isRunning
 
         if (isRunning) {
-            tvStatus.text = "Статус: Работает (Защита от сброса)"
+            tvStatus.text = "Статус: Служба активна"
             tvStatus.setTextColor(Color.parseColor("#2E7D32"))
         } else {
             tvStatus.text = "Статус: Остановлено"

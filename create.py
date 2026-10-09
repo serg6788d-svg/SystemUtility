@@ -242,7 +242,7 @@ dependencies {
 </LinearLayout>
 """,
 
-    # 11. LocationService.kt (с защитой от сброса провайдеров системой)
+    # 11. LocationService.kt (с защитой от race condition и горячим обновлением)
     "app/src/main/java/com/sysservice/location/LocationService.kt": """package com.sysservice.location
 
 import android.app.Notification
@@ -295,23 +295,23 @@ class LocationService : Service() {
         createNotificationChannel()
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("System Utility (Driver Mode)")
-            .setContentText("Подмена координат активна (антисброс)")
+            .setContentText("Подмена координат стабильна")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .build()
         startForeground(1, notification)
 
-        // Держим процессор бодрствующим, чтобы служба не засыпала в фоне
         try {
             val powerManager = getSystemService(POWER_SERVICE) as PowerManager
             wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "SystemUtility::Wakelock")
-            wakeLock?.acquire(10 * 60 * 60 * 1000L) // 10 часов макс
+            wakeLock?.acquire(10 * 60 * 60 * 1000L)
         } catch (e: Exception) {}
 
         serviceScope.launch {
             val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
             val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
 
-            fun setupProviders() {
+            fun initProviders(): Boolean {
+                var success = true
                 for (provider in providers) {
                     try {
                         try {
@@ -324,18 +324,25 @@ class LocationService : Service() {
                         )
                         locationManager.setTestProviderEnabled(provider, true)
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to setup provider $provider", e)
+                        success = false
+                        Log.e(TAG, "Init provider error for $provider", e)
                     }
                 }
+                return success
             }
 
-            setupProviders()
-            var counter = 0
+            // Надежная инициализация с небольшой задержкой от race condition
+            var initialized = initProviders()
+            if (!initialized) {
+                delay(500)
+                initProviders()
+            }
 
+            var counter = 0
             while (isRunning) {
                 try {
-                    // Каждые 5 секунд принудительно переподтверждаем провайдеры на случай сброса системой
-                    if (counter % 5 == 0) {
+                    // Каждые 3 секунды проверяем и принудительно активируем провайдеры
+                    if (counter % 3 == 0) {
                         for (provider in providers) {
                             try {
                                 locationManager.setTestProviderEnabled(provider, true)
@@ -351,18 +358,18 @@ class LocationService : Service() {
                         val mockLocation = Location(provider).apply {
                             latitude = jitterLat
                             longitude = jitterLon
-                            altitude = 15.0 + Random.nextDouble() * 5.0
+                            altitude = 12.0 + Random.nextDouble() * 4.0
                             time = System.currentTimeMillis()
                             elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
-                            accuracy = 2.5f + Random.nextFloat() * 2.0f
+                            accuracy = 2.0f + Random.nextFloat() * 2.0f
                             speed = 0.0f
                             bearing = 0.0f
                         }
                         try {
                             locationManager.setTestProviderLocation(provider, mockLocation)
                         } catch (e: Exception) {
-                            // Если провайдер слетел — пробуем восстановить его на лету
-                            setupProviders()
+                            // Если провайдер отвалился — тут же пересоздаем его
+                            initProviders()
                         }
                     }
                 } catch (e: Exception) {}
@@ -403,7 +410,7 @@ class LocationService : Service() {
 }
 """,
 
-    # 12. MainActivity.kt
+    # 12. MainActivity.kt (с поддержкой горячего обновления координат на лету)
     "app/src/main/java/com/sysservice/location/MainActivity.kt": """package com.sysservice.location
 
 import android.content.Intent
@@ -449,12 +456,12 @@ class MainActivity : AppCompatActivity() {
                         startService(serviceIntent)
                     }
                     updateUIState(true)
-                    Toast.makeText(this, "Служба запущена в режиме антисброса!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Координаты переданы в службу!", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "Неверный формат чисел", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                Toast.makeText(this, "Введите координаты в формате: 55.654885, 37.828655", Toast.LENGTH_LONG).show( )
+                Toast.makeText(this, "Введите координаты в формате: 55.654885, 37.828655", Toast.LENGTH_LONG).show()
             }
         }
 
@@ -477,7 +484,7 @@ class MainActivity : AppCompatActivity() {
         etCoordinates.isEnabled = !isRunning
 
         if (isRunning) {
-            tvStatus.text = "Статус: Работает (Защита от сброса)"
+            tvStatus.text = "Статус: Служба активна"
             tvStatus.setTextColor(Color.parseColor("#2E7D32"))
         } else {
             tvStatus.text = "Статус: Остановлено"
