@@ -93,7 +93,7 @@ if [ -n "$JAVA_HOME" ] ; then
         org_gradle_java_home="$JAVA_HOME"
     fi
 fi
-exec java $DEFAULT_JVM_OPTS $JAVA_OPTS$GRADLE_OPTS "-Dorg.gradle.appname=gradlew" -classpath "$PRGDIR/gradle/wrapper/gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain "$@"
+exec java $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS "-Dorg.gradle.appname=gradlew" -classpath "$PRGDIR/gradle/wrapper/gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain "$@"
 """,
 
     # 6. gradlew.bat (для Windows)
@@ -600,4 +600,4 @@ for filepath, content in files.items():
         f.write(content)
     print(f"Создан/обновлен: {filepath}")
 
-print("Все файлы проекта
+print("Все файлы проекта успешно обновлены!")

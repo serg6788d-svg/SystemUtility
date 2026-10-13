@@ -32,69 +32,36 @@
             android:id="@+id/etCoordinates"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="55.654885, 37.828655"
+            android:hint=""
             android:inputType="text"
             android:textSize="16sp"
             android:padding="12dp"
             android:layout_marginBottom="24dp"/>
 
-        <!-- Секция постоянного режима -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Режим 1: Постоянная подмена (для смены)"
-            android:textSize="13sp"
-            android:textColor="#666666"
-            android:layout_marginBottom="6dp"/>
-
         <Button
             android:id="@+id/btnStart"
             android:layout_width="match_parent"
             android:layout_height="54dp"
-            android:text="ВКЛЮЧИТЬ ПОСТОЯННО"
-            android:textSize="15sp"
-            android:layout_marginBottom="8dp"/>
+            android:text="ЗАПУСТИТЬ"
+            android:textSize="16sp"
+            android:backgroundTint="#2E7D32"
+            android:layout_marginBottom="12dp"/>
 
         <Button
             android:id="@+id/btnStop"
             android:layout_width="match_parent"
             android:layout_height="54dp"
-            android:text="ОСТАНОВИТЬ СЛУЖБУ"
-            android:textSize="15sp"
+            android:text="ОСТАНОВИТЬ"
+            android:textSize="16sp"
             android:backgroundTint="#C62828"
-            android:layout_marginBottom="24dp"/>
-
-        <!-- Разделитель -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#DDDDDD"
-            android:layout_marginBottom="20dp"/>
-
-        <!-- Секция разового вброса в кэш -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Режим 2: Разовый вброс в кэш"
-            android:textSize="13sp"
-            android:textColor="#666666"
-            android:layout_marginBottom="6dp"/>
-
-        <Button
-            android:id="@+id/btnFreeze"
-            android:layout_width="match_parent"
-            android:layout_height="54dp"
-            android:text="ЗАПИСАТЬ В КЭШ И ВЫКЛЮЧИТЬ"
-            android:textSize="14sp"
-            android:backgroundTint="#2E7D32"
             android:layout_marginBottom="12dp"/>
 
         <Button
             android:id="@+id/btnOpenDev"
             android:layout_width="match_parent"
             android:layout_height="54dp"
-            android:text="⚙️ ОТКРЫТЬ НАСТРОЙКИ РАЗРАБОТЧИКА"
-            android:textSize="14sp"
+            android:text="⚙️ МЕНЮ РАЗРАБОТЧИКА"
+            android:textSize="15sp"
             android:backgroundTint="#455A64"/>
 
     </LinearLayout>

@@ -28,14 +28,14 @@ class LocationService : Service() {
         const val EXTRA_LAT = "extra_lat"
         const val EXTRA_LON = "extra_lon"
         const val EXTRA_MODE = "extra_mode"
-        const val MODE_CONTINUOUS = "mode_continuous"
-        const val MODE_FREEZE = "mode_freeze"
+        const val MODE_START = "mode_start"
+        const val MODE_STOP = "mode_stop"
         const val CHANNEL_ID = "LocationServiceChannel"
         const val TAG = "LocationService"
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_CONTINUOUS
+        val mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_START
         intent?.let {
             if (it.hasExtra(EXTRA_LAT) && it.hasExtra(EXTRA_LON)) {
                 baseLatitude = it.getDoubleExtra(EXTRA_LAT, baseLatitude)
@@ -43,8 +43,8 @@ class LocationService : Service() {
             }
         }
 
-        if (mode == MODE_FREEZE) {
-            executeFreezeMode()
+        if (mode == MODE_STOP) {
+            freezeCacheAndStop()
             return START_NOT_STICKY
         }
 
@@ -56,7 +56,7 @@ class LocationService : Service() {
         return START_STICKY
     }
 
-    private fun executeFreezeMode() {
+    private fun freezeCacheAndStop() {
         serviceScope.launch {
             val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
             val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
@@ -69,6 +69,7 @@ class LocationService : Service() {
                 } catch (e: Exception) {}
             }
 
+            // Финальный вброс точек в кэш перед выключением
             for (i in 1..3) {
                 for (provider in providers) {
                     val mockLocation = Location(provider).apply {
@@ -85,16 +86,20 @@ class LocationService : Service() {
                         locationManager.setTestProviderLocation(provider, mockLocation)
                     } catch (e: Exception) {}
                 }
-                delay(300)
+                delay(200)
             }
 
+            // Удаляем тестовые провайдеры, оставляя точку замороженной в кэше
             for (provider in providers) {
                 try {
                     locationManager.removeTestProvider(provider)
                 } catch (e: Exception) {}
             }
 
+            isRunning = false
             isServiceRunning = false
+            try { wakeLock?.release() } catch (e: Exception) {}
+            stopForeground(true)
             stopSelf()
         }
     }

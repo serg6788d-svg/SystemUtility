@@ -14,7 +14,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etCoordinates: EditText
     private lateinit var btnStart: Button
     private lateinit var btnStop: Button
-    private lateinit var btnFreeze: Button
     private lateinit var btnOpenDev: Button
     private lateinit var tvStatus: TextView
 
@@ -25,18 +24,42 @@ class MainActivity : AppCompatActivity() {
         etCoordinates = findViewById(R.id.etCoordinates)
         btnStart = findViewById(R.id.btnStart)
         btnStop = findViewById(R.id.btnStop)
-        btnFreeze = findViewById(R.id.btnFreeze)
         btnOpenDev = findViewById(R.id.btnOpenDev)
         tvStatus = findViewById(R.id.tvStatus)
 
         updateUIState(LocationService.isServiceRunning)
 
         btnStart.setOnClickListener {
-            val (lat, lon) = parseCoords() ?: return@setOnClickListener
+            val input = etCoordinates.text.toString().trim()
+            val lat: Double
+            val lon: Double
+            
+            if (input.isNotEmpty()) {
+                val parts = input.split(",")
+                if (parts.size == 2) {
+                    val parsedLat = parts[0].trim().toDoubleOrNull()
+                    val parsedLon = parts[1].trim().toDoubleOrNull()
+                    if (parsedLat != null && parsedLon != null) {
+                        lat = parsedLat
+                        lon = parsedLon
+                    } else {
+                        Toast.makeText(this, "Неверный формат чисел", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                } else {
+                    Toast.makeText(this, "Формат: Широта, Долгота", Toast.LENGTH_LONG).show()
+                    return@setOnClickListener
+                }
+            } else {
+                // Если поле пустое, берем дефолтные или предыдущие (либо просим ввести)
+                lat = 55.755864
+                lon = 37.617698
+            }
+
             val serviceIntent = Intent(this, LocationService::class.java).apply {
                 putExtra(LocationService.EXTRA_LAT, lat)
                 putExtra(LocationService.EXTRA_LON, lon)
-                putExtra(LocationService.EXTRA_MODE, LocationService.MODE_CONTINUOUS)
+                putExtra(LocationService.EXTRA_MODE, LocationService.MODE_START)
             }
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 startForegroundService(serviceIntent)
@@ -44,22 +67,35 @@ class MainActivity : AppCompatActivity() {
                 startService(serviceIntent)
             }
             updateUIState(true)
-            Toast.makeText(this, "Постоянная подмена включена!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Подмена запущена!", Toast.LENGTH_SHORT).show()
         }
 
-        btnFreeze.setOnClickListener {
-            val (lat, lon) = parseCoords() ?: return@setOnClickListener
+        btnStop.setOnClickListener {
+            val input = etCoordinates.text.toString().trim()
+            var intentLat: Double? = null
+            var intentLon: Double? = null
+            if (input.isNotEmpty()) {
+                val parts = input.split(",")
+                if (parts.size == 2) {
+                    intentLat = parts[0].trim().toDoubleOrNull()
+                    intentLon = parts[1].trim().toDoubleOrNull()
+                }
+            }
+
             val serviceIntent = Intent(this, LocationService::class.java).apply {
-                putExtra(LocationService.EXTRA_LAT, lat)
-                putExtra(LocationService.EXTRA_LON, lon)
-                putExtra(LocationService.EXTRA_MODE, LocationService.MODE_FREEZE)
+                putExtra(LocationService.EXTRA_MODE, LocationService.MODE_STOP)
+                if (intentLat != null && intentLon != null) {
+                    putExtra(LocationService.EXTRA_LAT, intentLat)
+                    putExtra(LocationService.EXTRA_LON, intentLon)
+                }
             }
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 startForegroundService(serviceIntent)
             } else {
                 startService(serviceIntent)
             }
-            Toast.makeText(this, "Точка в кэше! Теперь нажмите кнопку ниже и выберите 'Ничего'.", Toast.LENGTH_LONG).show()
+            updateUIState(false)
+            Toast.makeText(this, "Точка заморожена в кэше! Отключите мок в разработчиках.", Toast.LENGTH_LONG).show()
         }
 
         btnOpenDev.setOnClickListener {
@@ -70,27 +106,6 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Не удалось открыть настройки разработчика", Toast.LENGTH_SHORT).show()
             }
         }
-
-        btnStop.setOnClickListener {
-            val serviceIntent = Intent(this, LocationService::class.java)
-            stopService(serviceIntent)
-            updateUIState(false)
-            Toast.makeText(this, "Служба остановлена", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun parseCoords(): Pair<Double, Double>? {
-        val input = etCoordinates.text.toString().trim()
-        val parts = input.split(",")
-        if (parts.size == 2) {
-            val lat = parts[0].trim().toDoubleOrNull()
-            val lon = parts[1].trim().toDoubleOrNull()
-            if (lat != null && lon != null) {
-                return Pair(lat, lon)
-            }
-        }
-        Toast.makeText(this, "Формат: 55.654885, 37.828655", Toast.LENGTH_LONG).show()
-        return null
     }
 
     override fun onResume() {
@@ -99,15 +114,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUIState(isRunning: Boolean) {
-        btnStart.isEnabled = !isRunning
-        etCoordinates.isEnabled = !isRunning
-        
         if (isRunning) {
-            tvStatus.text = "Статус: Постоянная подмена активна"
+            tvStatus.text = "Статус: Подмена активна"
             tvStatus.setTextColor(Color.parseColor("#2E7D32"))
         } else {
-            tvStatus.text = "Статус: Остановлено"
-            tvStatus.setTextColor(Color.parseColor("#C62828"))
+            tvStatus.text = "Статус: Остановлено / Кэш готов"
+            tvStatus.setTextColor(Color.parseColor("#1976D2"))
         }
     }
 }
