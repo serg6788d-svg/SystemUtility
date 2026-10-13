@@ -12,8 +12,8 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
     private lateinit var etCoordinates: EditText
     private lateinit var btnStart: Button
-    private lateinit var btnFreeze: Button
     private lateinit var btnStop: Button
+    private lateinit var btnFreeze: Button
     private lateinit var tvStatus: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,8 +22,8 @@ class MainActivity : AppCompatActivity() {
 
         etCoordinates = findViewById(R.id.etCoordinates)
         btnStart = findViewById(R.id.btnStart)
-        btnFreeze = findViewById(R.id.btnFreeze)
         btnStop = findViewById(R.id.btnStop)
+        btnFreeze = findViewById(R.id.btnFreeze)
         tvStatus = findViewById(R.id.tvStatus)
 
         updateUIState(LocationService.isServiceRunning)
@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
                 startService(serviceIntent)
             }
             updateUIState(true)
-            Toast.makeText(this, "Постоянная подмена запущена!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Постоянная подмена включена!", Toast.LENGTH_SHORT).show()
         }
 
         btnFreeze.setOnClickListener {
@@ -56,14 +56,14 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            Toast.makeText(this, "Точка успешно заморожена в кэше системы!", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Точка записана в кэш! Теперь можно отключить мок в настройках.", Toast.LENGTH_LONG).show()
         }
 
         btnStop.setOnClickListener {
             val serviceIntent = Intent(this, LocationService::class.java)
             stopService(serviceIntent)
             updateUIState(false)
-            Toast.makeText(this, "Подмена остановлена", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Служба остановлена", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -88,15 +88,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateUIState(isRunning: Boolean) {
         btnStart.isEnabled = !isRunning
-        btnStop.isEnabled = isRunning
         etCoordinates.isEnabled = !isRunning
-
+        
         if (isRunning) {
             tvStatus.text = "Статус: Постоянная подмена активна"
             tvStatus.setTextColor(Color.parseColor("#2E7D32"))
         } else {
-            tvStatus.text = "Статус: Остановлено / Кэш готов"
-            tvStatus.setTextColor(Color.parseColor("#1976D2"))
+            tvStatus.text = "Статус: Остановлено"
+            tvStatus.setTextColor(Color.parseColor("#C62828"))
         }
     }
 }

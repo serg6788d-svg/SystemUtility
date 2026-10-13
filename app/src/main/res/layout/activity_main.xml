@@ -1,57 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center">
+    android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/tvStatus"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Статус: Остановлено"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="24dp"/>
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center_horizontal">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Введите координаты (Широта, Долгота):"
-        android:textSize="16sp"
-        android:layout_marginBottom="8dp"/>
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Статус: Остановлено"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="24dp"/>
 
-    <EditText
-        android:id="@+id/etCoordinates"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="55.654885, 37.828655"
-        android:inputType="text"
-        android:layout_marginBottom="24dp"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Координаты (Широта, Долгота):"
+            android:textSize="15sp"
+            android:layout_marginBottom="8dp"/>
 
-    <Button
-        android:id="@+id/btnStart"
-        android:layout_width="match_parent"
-        android:layout_height="55dp"
-        android:text="ПОСТОЯННЫЙ ЗАПУСК"
-        android:textSize="15sp"
-        android:layout_marginBottom="12dp"/>
+        <EditText
+            android:id="@+id/etCoordinates"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="55.654885, 37.828655"
+            android:inputType="text"
+            android:textSize="16sp"
+            android:padding="12dp"
+            android:layout_marginBottom="24dp"/>
 
-    <Button
-        android:id="@+id/btnFreeze"
-        android:layout_width="match_parent"
-        android:layout_height="55dp"
-        android:text="ЗАМОРОЗИТЬ В КЭШЕ"
-        android:textSize="15sp"
-        android:layout_marginBottom="12dp"/>
+        <!-- Секция постоянного режима -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Режим 1: Постоянная подмена (для смены)"
+            android:textSize="13sp"
+            android:textColor="#666666"
+            android:layout_marginBottom="6dp"/>
 
-    <Button
-        android:id="@+id/btnStop"
-        android:layout_width="match_parent"
-        android:layout_height="55dp"
-        android:text="ОСТАНОВИТЬ"
-        android:textSize="15sp"/>
+        <Button
+            android:id="@+id/btnStart"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:text="ВКЛЮЧИТЬ ПОСТОЯННО"
+            android:textSize="15sp"
+            android:layout_marginBottom="8dp"/>
 
-</LinearLayout>
+        <Button
+            android:id="@+id/btnStop"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:text="ОСТАНОВИТЬ СЛУЖБУ"
+            android:textSize="15sp"
+            android:backgroundTint="#C62828"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- Разделитель -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#DDDDDD"
+            android:layout_marginBottom="20dp"/>
+
+        <!-- Секция разового вброса в кэш -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Режим 2: Разовый вброс в кэш (без службы)"
+            android:textSize="13sp"
+            android:textColor="#666666"
+            android:layout_marginBottom="6dp"/>
+
+        <Button
+            android:id="@+id/btnFreeze"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:text="ЗАПИСАТЬ В КЭШ И ВЫКЛЮЧИТЬ"
+            android:textSize="14sp"
+            android:backgroundTint="#2E7D32"/>
+
+    </LinearLayout>
+</ScrollView>

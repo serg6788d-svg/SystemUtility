@@ -190,67 +190,102 @@ dependencies {
 </manifest>
 """,
 
-    # 10. activity_main.xml (добавлена кнопка заморозки)
+    # 10. activity_main.xml (логичный и аккуратный интерфейс)
     "app/src/main/res/layout/activity_main.xml": """<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center">
+    android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/tvStatus"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Статус: Остановлено"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="24dp"/>
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center_horizontal">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Введите координаты (Широта, Долгота):"
-        android:textSize="16sp"
-        android:layout_marginBottom="8dp"/>
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Статус: Остановлено"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="24dp"/>
 
-    <EditText
-        android:id="@+id/etCoordinates"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="55.654885, 37.828655"
-        android:inputType="text"
-        android:layout_marginBottom="24dp"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Координаты (Широта, Долгота):"
+            android:textSize="15sp"
+            android:layout_marginBottom="8dp"/>
 
-    <Button
-        android:id="@+id/btnStart"
-        android:layout_width="match_parent"
-        android:layout_height="55dp"
-        android:text="ПОСТОЯННЫЙ ЗАПУСК"
-        android:textSize="15sp"
-        android:layout_marginBottom="12dp"/>
+        <EditText
+            android:id="@+id/etCoordinates"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="55.654885, 37.828655"
+            android:inputType="text"
+            android:textSize="16sp"
+            android:padding="12dp"
+            android:layout_marginBottom="24dp"/>
 
-    <Button
-        android:id="@+id/btnFreeze"
-        android:layout_width="match_parent"
-        android:layout_height="55dp"
-        android:text="ЗАМОРОЗИТЬ В КЭШЕ"
-        android:textSize="15sp"
-        android:layout_marginBottom="12dp"/>
+        <!-- Секция постоянного режима -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Режим 1: Постоянная подмена (для смены)"
+            android:textSize="13sp"
+            android:textColor="#666666"
+            android:layout_marginBottom="6dp"/>
 
-    <Button
-        android:id="@+id/btnStop"
-        android:layout_width="match_parent"
-        android:layout_height="55dp"
-        android:text="ОСТАНОВИТЬ"
-        android:textSize="15sp"/>
+        <Button
+            android:id="@+id/btnStart"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:text="ВКЛЮЧИТЬ ПОСТОЯННО"
+            android:textSize="15sp"
+            android:layout_marginBottom="8dp"/>
 
-</LinearLayout>
+        <Button
+            android:id="@+id/btnStop"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:text="ОСТАНОВИТЬ СЛУЖБУ"
+            android:textSize="15sp"
+            android:backgroundTint="#C62828"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- Разделитель -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#DDDDDD"
+            android:layout_marginBottom="20dp"/>
+
+        <!-- Секция разового вброса в кэш -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Режим 2: Разовый вброс в кэш (без службы)"
+            android:textSize="13sp"
+            android:textColor="#666666"
+            android:layout_marginBottom="6dp"/>
+
+        <Button
+            android:id="@+id/btnFreeze"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:text="ЗАПИСАТЬ В КЭШ И ВЫКЛЮЧИТЬ"
+            android:textSize="14sp"
+            android:backgroundTint="#2E7D32"/>
+
+    </LinearLayout>
+</ScrollView>
 """,
 
-    # 11. LocationService.kt (с режимом freeze)
+    # 11. LocationService.kt
     "app/src/main/java/com/sysservice/location/LocationService.kt": """package com.sysservice.location
 
 import android.app.Notification
@@ -297,7 +332,6 @@ class LocationService : Service() {
         }
 
         if (mode == MODE_FREEZE) {
-            // Режим мгновенной заморозки точки в кэш и отключение
             executeFreezeMode()
             return START_NOT_STICKY
         }
@@ -323,7 +357,6 @@ class LocationService : Service() {
                 } catch (e: Exception) {}
             }
 
-            // Шлем точку несколько раз, чтобы забить все системные буферы
             for (i in 1..3) {
                 for (provider in providers) {
                     val mockLocation = Location(provider).apply {
@@ -343,7 +376,6 @@ class LocationService : Service() {
                 delay(300)
             }
 
-            // Сразу же удаляем тестовые провайдеры (как переключение в "Ничего"), оставляя кэш
             for (provider in providers) {
                 try {
                     locationManager.removeTestProvider(provider)
@@ -450,7 +482,7 @@ class LocationService : Service() {
 }
 """,
 
-    # 12. MainActivity.kt (с обработкой кнопки заморозки)
+    # 12. MainActivity.kt
     "app/src/main/java/com/sysservice/location/MainActivity.kt": """package com.sysservice.location
 
 import android.content.Intent
@@ -465,8 +497,8 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
     private lateinit var etCoordinates: EditText
     private lateinit var btnStart: Button
-    private lateinit var btnFreeze: Button
     private lateinit var btnStop: Button
+    private lateinit var btnFreeze: Button
     private lateinit var tvStatus: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -475,8 +507,8 @@ class MainActivity : AppCompatActivity() {
 
         etCoordinates = findViewById(R.id.etCoordinates)
         btnStart = findViewById(R.id.btnStart)
-        btnFreeze = findViewById(R.id.btnFreeze)
         btnStop = findViewById(R.id.btnStop)
+        btnFreeze = findViewById(R.id.btnFreeze)
         tvStatus = findViewById(R.id.tvStatus)
 
         updateUIState(LocationService.isServiceRunning)
@@ -494,7 +526,7 @@ class MainActivity : AppCompatActivity() {
                 startService(serviceIntent)
             }
             updateUIState(true)
-            Toast.makeText(this, "Постоянная подмена запущена!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Постоянная подмена включена!", Toast.LENGTH_SHORT).show()
         }
 
         btnFreeze.setOnClickListener {
@@ -509,14 +541,14 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            Toast.makeText(this, "Точка успешно заморожена в кэше системы!", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Точка записана в кэш! Теперь можно отключить мок в настройках.", Toast.LENGTH_LONG).show()
         }
 
         btnStop.setOnClickListener {
             val serviceIntent = Intent(this, LocationService::class.java)
             stopService(serviceIntent)
             updateUIState(false)
-            Toast.makeText(this, "Подмена остановлена", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Служба остановлена", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -541,15 +573,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateUIState(isRunning: Boolean) {
         btnStart.isEnabled = !isRunning
-        btnStop.isEnabled = isRunning
         etCoordinates.isEnabled = !isRunning
-
+        
         if (isRunning) {
             tvStatus.text = "Статус: Постоянная подмена активна"
             tvStatus.setTextColor(Color.parseColor("#2E7D32"))
         } else {
-            tvStatus.text = "Статус: Остановлено / Кэш готов"
-            tvStatus.setTextColor(Color.parseColor("#1976D2"))
+            tvStatus.text = "Статус: Остановлено"
+            tvStatus.setTextColor(Color.parseColor("#C62828"))
         }
     }
 }

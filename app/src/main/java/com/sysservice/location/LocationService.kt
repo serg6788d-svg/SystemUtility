@@ -44,7 +44,6 @@ class LocationService : Service() {
         }
 
         if (mode == MODE_FREEZE) {
-            // Режим мгновенной заморозки точки в кэш и отключение
             executeFreezeMode()
             return START_NOT_STICKY
         }
@@ -70,7 +69,6 @@ class LocationService : Service() {
                 } catch (e: Exception) {}
             }
 
-            // Шлем точку несколько раз, чтобы забить все системные буферы
             for (i in 1..3) {
                 for (provider in providers) {
                     val mockLocation = Location(provider).apply {
@@ -90,7 +88,6 @@ class LocationService : Service() {
                 delay(300)
             }
 
-            // Сразу же удаляем тестовые провайдеры (как переключение в "Ничего"), оставляя кэш
             for (provider in providers) {
                 try {
                     locationManager.removeTestProvider(provider)
