@@ -93,7 +93,7 @@ if [ -n "$JAVA_HOME" ] ; then
         org_gradle_java_home="$JAVA_HOME"
     fi
 fi
-exec java $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS "-Dorg.gradle.appname=gradlew" -classpath "$PRGDIR/gradle/wrapper/gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain "$@"
+exec java $DEFAULT_JVM_OPTS $JAVA_OPTS$GRADLE_OPTS "-Dorg.gradle.appname=gradlew" -classpath "$PRGDIR/gradle/wrapper/gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain "$@"
 """,
 
     # 6. gradlew.bat (для Windows)
@@ -190,7 +190,7 @@ dependencies {
 </manifest>
 """,
 
-    # 10. activity_main.xml (полный интерфейс со всеми кнопками)
+    # 10. activity_main.xml (3 кнопки и пустое поле ввода без подсказок)
     "app/src/main/res/layout/activity_main.xml": """<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -225,76 +225,43 @@ dependencies {
             android:id="@+id/etCoordinates"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="55.654885, 37.828655"
+            android:hint=""
             android:inputType="text"
             android:textSize="16sp"
             android:padding="12dp"
             android:layout_marginBottom="24dp"/>
 
-        <!-- Секция постоянного режима -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Режим 1: Постоянная подмена (для смены)"
-            android:textSize="13sp"
-            android:textColor="#666666"
-            android:layout_marginBottom="6dp"/>
-
         <Button
             android:id="@+id/btnStart"
             android:layout_width="match_parent"
             android:layout_height="54dp"
-            android:text="ВКЛЮЧИТЬ ПОСТОЯННО"
-            android:textSize="15sp"
-            android:layout_marginBottom="8dp"/>
+            android:text="ЗАПУСТИТЬ"
+            android:textSize="16sp"
+            android:backgroundTint="#2E7D32"
+            android:layout_marginBottom="12dp"/>
 
         <Button
             android:id="@+id/btnStop"
             android:layout_width="match_parent"
             android:layout_height="54dp"
-            android:text="ОСТАНОВИТЬ СЛУЖБУ"
-            android:textSize="15sp"
+            android:text="ОСТАНОВИТЬ"
+            android:textSize="16sp"
             android:backgroundTint="#C62828"
-            android:layout_marginBottom="24dp"/>
-
-        <!-- Разделитель -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#DDDDDD"
-            android:layout_marginBottom="20dp"/>
-
-        <!-- Секция разового вброса в кэш -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Режим 2: Разовый вброс в кэш"
-            android:textSize="13sp"
-            android:textColor="#666666"
-            android:layout_marginBottom="6dp"/>
-
-        <Button
-            android:id="@+id/btnFreeze"
-            android:layout_width="match_parent"
-            android:layout_height="54dp"
-            android:text="ЗАПИСАТЬ В КЭШ И ВЫКЛЮЧИТЬ"
-            android:textSize="14sp"
-            android:backgroundTint="#2E7D32"
             android:layout_marginBottom="12dp"/>
 
         <Button
             android:id="@+id/btnOpenDev"
             android:layout_width="match_parent"
             android:layout_height="54dp"
-            android:text="⚙️ ОТКРЫТЬ НАСТРОЙКИ РАЗРАБОТЧИКА"
-            android:textSize="14sp"
+            android:text="⚙️ МЕНЮ РАЗРАБОТЧИКА"
+            android:textSize="15sp"
             android:backgroundTint="#455A64"/>
 
     </LinearLayout>
 </ScrollView>
 """,
 
-    # 11. LocationService.kt
+    # 11. LocationService.kt (с заморозкой координат в кэше при остановке)
     "app/src/main/java/com/sysservice/location/LocationService.kt": """package com.sysservice.location
 
 import android.app.Notification
@@ -325,14 +292,14 @@ class LocationService : Service() {
         const val EXTRA_LAT = "extra_lat"
         const val EXTRA_LON = "extra_lon"
         const val EXTRA_MODE = "extra_mode"
-        const val MODE_CONTINUOUS = "mode_continuous"
-        const val MODE_FREEZE = "mode_freeze"
+        const val MODE_START = "mode_start"
+        const val MODE_STOP = "mode_stop"
         const val CHANNEL_ID = "LocationServiceChannel"
         const val TAG = "LocationService"
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_CONTINUOUS
+        val mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_START
         intent?.let {
             if (it.hasExtra(EXTRA_LAT) && it.hasExtra(EXTRA_LON)) {
                 baseLatitude = it.getDoubleExtra(EXTRA_LAT, baseLatitude)
@@ -340,8 +307,8 @@ class LocationService : Service() {
             }
         }
 
-        if (mode == MODE_FREEZE) {
-            executeFreezeMode()
+        if (mode == MODE_STOP) {
+            freezeCacheAndStop()
             return START_NOT_STICKY
         }
 
@@ -353,7 +320,7 @@ class LocationService : Service() {
         return START_STICKY
     }
 
-    private fun executeFreezeMode() {
+    private fun freezeCacheAndStop() {
         serviceScope.launch {
             val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
             val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
@@ -366,6 +333,7 @@ class LocationService : Service() {
                 } catch (e: Exception) {}
             }
 
+            // Финальный вброс точек в кэш перед выключением
             for (i in 1..3) {
                 for (provider in providers) {
                     val mockLocation = Location(provider).apply {
@@ -382,16 +350,20 @@ class LocationService : Service() {
                         locationManager.setTestProviderLocation(provider, mockLocation)
                     } catch (e: Exception) {}
                 }
-                delay(300)
+                delay(200)
             }
 
+            // Удаляем тестовые провайдеры, оставляя точку замороженной в кэше
             for (provider in providers) {
                 try {
                     locationManager.removeTestProvider(provider)
                 } catch (e: Exception) {}
             }
 
+            isRunning = false
             isServiceRunning = false
+            try { wakeLock?.release() } catch (e: Exception) {}
+            stopForeground(true)
             stopSelf()
         }
     }
@@ -491,7 +463,7 @@ class LocationService : Service() {
 }
 """,
 
-    # 12. MainActivity.kt (с поддержкой заморозки и кнопкой разработчика)
+    # 12. MainActivity.kt (управление 3 кнопками)
     "app/src/main/java/com/sysservice/location/MainActivity.kt": """package com.sysservice.location
 
 import android.content.Intent
@@ -508,7 +480,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etCoordinates: EditText
     private lateinit var btnStart: Button
     private lateinit var btnStop: Button
-    private lateinit var btnFreeze: Button
     private lateinit var btnOpenDev: Button
     private lateinit var tvStatus: TextView
 
@@ -519,18 +490,42 @@ class MainActivity : AppCompatActivity() {
         etCoordinates = findViewById(R.id.etCoordinates)
         btnStart = findViewById(R.id.btnStart)
         btnStop = findViewById(R.id.btnStop)
-        btnFreeze = findViewById(R.id.btnFreeze)
         btnOpenDev = findViewById(R.id.btnOpenDev)
         tvStatus = findViewById(R.id.tvStatus)
 
         updateUIState(LocationService.isServiceRunning)
 
         btnStart.setOnClickListener {
-            val (lat, lon) = parseCoords() ?: return@setOnClickListener
+            val input = etCoordinates.text.toString().trim()
+            val lat: Double
+            val lon: Double
+            
+            if (input.isNotEmpty()) {
+                val parts = input.split(",")
+                if (parts.size == 2) {
+                    val parsedLat = parts[0].trim().toDoubleOrNull()
+                    val parsedLon = parts[1].trim().toDoubleOrNull()
+                    if (parsedLat != null && parsedLon != null) {
+                        lat = parsedLat
+                        lon = parsedLon
+                    } else {
+                        Toast.makeText(this, "Неверный формат чисел", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                } else {
+                    Toast.makeText(this, "Формат: Широта, Долгота", Toast.LENGTH_LONG).show()
+                    return@setOnClickListener
+                }
+            } else {
+                // Если поле пустое, берем дефолтные или предыдущие (либо просим ввести)
+                lat = 55.755864
+                lon = 37.617698
+            }
+
             val serviceIntent = Intent(this, LocationService::class.java).apply {
                 putExtra(LocationService.EXTRA_LAT, lat)
                 putExtra(LocationService.EXTRA_LON, lon)
-                putExtra(LocationService.EXTRA_MODE, LocationService.MODE_CONTINUOUS)
+                putExtra(LocationService.EXTRA_MODE, LocationService.MODE_START)
             }
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 startForegroundService(serviceIntent)
@@ -538,22 +533,35 @@ class MainActivity : AppCompatActivity() {
                 startService(serviceIntent)
             }
             updateUIState(true)
-            Toast.makeText(this, "Постоянная подмена включена!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Подмена запущена!", Toast.LENGTH_SHORT).show()
         }
 
-        btnFreeze.setOnClickListener {
-            val (lat, lon) = parseCoords() ?: return@setOnClickListener
+        btnStop.setOnClickListener {
+            val input = etCoordinates.text.toString().trim()
+            var intentLat: Double? = null
+            var intentLon: Double? = null
+            if (input.isNotEmpty()) {
+                val parts = input.split(",")
+                if (parts.size == 2) {
+                    intentLat = parts[0].trim().toDoubleOrNull()
+                    intentLon = parts[1].trim().toDoubleOrNull()
+                }
+            }
+
             val serviceIntent = Intent(this, LocationService::class.java).apply {
-                putExtra(LocationService.EXTRA_LAT, lat)
-                putExtra(LocationService.EXTRA_LON, lon)
-                putExtra(LocationService.EXTRA_MODE, LocationService.MODE_FREEZE)
+                putExtra(LocationService.EXTRA_MODE, LocationService.MODE_STOP)
+                if (intentLat != null && intentLon != null) {
+                    putExtra(LocationService.EXTRA_LAT, intentLat)
+                    putExtra(LocationService.EXTRA_LON, intentLon)
+                }
             }
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 startForegroundService(serviceIntent)
             } else {
                 startService(serviceIntent)
             }
-            Toast.makeText(this, "Точка в кэше! Теперь нажмите кнопку ниже и выберите 'Ничего'.", Toast.LENGTH_LONG).show()
+            updateUIState(false)
+            Toast.makeText(this, "Точка заморожена в кэше! Отключите мок в разработчиках.", Toast.LENGTH_LONG).show()
         }
 
         btnOpenDev.setOnClickListener {
@@ -564,27 +572,6 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Не удалось открыть настройки разработчика", Toast.LENGTH_SHORT).show()
             }
         }
-
-        btnStop.setOnClickListener {
-            val serviceIntent = Intent(this, LocationService::class.java)
-            stopService(serviceIntent)
-            updateUIState(false)
-            Toast.makeText(this, "Служба остановлена", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun parseCoords(): Pair<Double, Double>? {
-        val input = etCoordinates.text.toString().trim()
-        val parts = input.split(",")
-        if (parts.size == 2) {
-            val lat = parts[0].trim().toDoubleOrNull()
-            val lon = parts[1].trim().toDoubleOrNull()
-            if (lat != null && lon != null) {
-                return Pair(lat, lon)
-            }
-        }
-        Toast.makeText(this, "Формат: 55.654885, 37.828655", Toast.LENGTH_LONG).show()
-        return null
     }
 
     override fun onResume() {
@@ -593,15 +580,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUIState(isRunning: Boolean) {
-        btnStart.isEnabled = !isRunning
-        etCoordinates.isEnabled = !isRunning
-        
         if (isRunning) {
-            tvStatus.text = "Статус: Постоянная подмена активна"
+            tvStatus.text = "Статус: Подмена активна"
             tvStatus.setTextColor(Color.parseColor("#2E7D32"))
         } else {
-            tvStatus.text = "Статус: Остановлено"
-            tvStatus.setTextColor(Color.parseColor("#C62828"))
+            tvStatus.text = "Статус: Остановлено / Кэш готов"
+            tvStatus.setTextColor(Color.parseColor("#1976D2"))
         }
     }
 }
@@ -616,4 +600,4 @@ for filepath, content in files.items():
         f.write(content)
     print(f"Создан/обновлен: {filepath}")
 
-print("Все файлы проекта успешно обновлены!")
+print("Все файлы проекта
