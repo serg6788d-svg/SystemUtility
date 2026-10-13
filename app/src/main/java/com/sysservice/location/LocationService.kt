@@ -27,17 +27,28 @@ class LocationService : Service() {
         var isServiceRunning = false
         const val EXTRA_LAT = "extra_lat"
         const val EXTRA_LON = "extra_lon"
+        const val EXTRA_MODE = "extra_mode"
+        const val MODE_CONTINUOUS = "mode_continuous"
+        const val MODE_FREEZE = "mode_freeze"
         const val CHANNEL_ID = "LocationServiceChannel"
         const val TAG = "LocationService"
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_CONTINUOUS
         intent?.let {
             if (it.hasExtra(EXTRA_LAT) && it.hasExtra(EXTRA_LON)) {
                 baseLatitude = it.getDoubleExtra(EXTRA_LAT, baseLatitude)
                 baseLongitude = it.getDoubleExtra(EXTRA_LON, baseLongitude)
             }
         }
+
+        if (mode == MODE_FREEZE) {
+            // Режим мгновенной заморозки точки в кэш и отключение
+            executeFreezeMode()
+            return START_NOT_STICKY
+        }
+
         if (!isRunning) {
             isRunning = true
             isServiceRunning = true
@@ -46,11 +57,56 @@ class LocationService : Service() {
         return START_STICKY
     }
 
+    private fun executeFreezeMode() {
+        serviceScope.launch {
+            val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+            val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+
+            for (provider in providers) {
+                try {
+                    try { locationManager.removeTestProvider(provider) } catch (e: Exception) {}
+                    locationManager.addTestProvider(provider, false, false, false, false, true, true, true, 1, 1)
+                    locationManager.setTestProviderEnabled(provider, true)
+                } catch (e: Exception) {}
+            }
+
+            // Шлем точку несколько раз, чтобы забить все системные буферы
+            for (i in 1..3) {
+                for (provider in providers) {
+                    val mockLocation = Location(provider).apply {
+                        latitude = baseLatitude
+                        longitude = baseLongitude
+                        altitude = 15.0
+                        time = System.currentTimeMillis()
+                        elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+                        accuracy = 3.0f
+                        speed = 0.0f
+                        bearing = 0.0f
+                    }
+                    try {
+                        locationManager.setTestProviderLocation(provider, mockLocation)
+                    } catch (e: Exception) {}
+                }
+                delay(300)
+            }
+
+            // Сразу же удаляем тестовые провайдеры (как переключение в "Ничего"), оставляя кэш
+            for (provider in providers) {
+                try {
+                    locationManager.removeTestProvider(provider)
+                } catch (e: Exception) {}
+            }
+
+            isServiceRunning = false
+            stopSelf()
+        }
+    }
+
     private fun startForegroundServiceAndMock() {
         createNotificationChannel()
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("System Utility (Driver Mode)")
-            .setContentText("Подмена координат стабильна")
+            .setContentText("Постоянная подмена активна")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .build()
         startForeground(1, notification)
@@ -65,43 +121,24 @@ class LocationService : Service() {
             val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
             val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
 
-            fun initProviders(): Boolean {
-                var success = true
+            fun initProviders() {
                 for (provider in providers) {
                     try {
-                        try {
-                            locationManager.removeTestProvider(provider)
-                        } catch (e: Exception) {}
-
-                        locationManager.addTestProvider(
-                            provider, false, false, false, false,
-                            true, true, true, 1, 1
-                        )
+                        try { locationManager.removeTestProvider(provider) } catch (e: Exception) {}
+                        locationManager.addTestProvider(provider, false, false, false, false, true, true, true, 1, 1)
                         locationManager.setTestProviderEnabled(provider, true)
-                    } catch (e: Exception) {
-                        success = false
-                        Log.e(TAG, "Init provider error for $provider", e)
-                    }
+                    } catch (e: Exception) {}
                 }
-                return success
             }
 
-            // Надежная инициализация с небольшой задержкой от race condition
-            var initialized = initProviders()
-            if (!initialized) {
-                delay(500)
-                initProviders()
-            }
-
+            initProviders()
             var counter = 0
+
             while (isRunning) {
                 try {
-                    // Каждые 3 секунды проверяем и принудительно активируем провайдеры
                     if (counter % 3 == 0) {
                         for (provider in providers) {
-                            try {
-                                locationManager.setTestProviderEnabled(provider, true)
-                            } catch (e: Exception) {}
+                            try { locationManager.setTestProviderEnabled(provider, true) } catch (e: Exception) {}
                         }
                     }
                     counter++
@@ -123,7 +160,6 @@ class LocationService : Service() {
                         try {
                             locationManager.setTestProviderLocation(provider, mockLocation)
                         } catch (e: Exception) {
-                            // Если провайдер отвалился — тут же пересоздаем его
                             initProviders()
                         }
                     }
@@ -149,15 +185,11 @@ class LocationService : Service() {
         super.onDestroy()
         isRunning = false
         isServiceRunning = false
-        try {
-            wakeLock?.release()
-        } catch (e: Exception) {}
+        try { wakeLock?.release() } catch (e: Exception) {}
         serviceScope.cancel()
         val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
         for (provider in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)) {
-            try {
-                locationManager.removeTestProvider(provider)
-            } catch (e: Exception) {}
+            try { locationManager.removeTestProvider(provider) } catch (e: Exception) {}
         }
     }
 
