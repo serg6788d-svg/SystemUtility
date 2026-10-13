@@ -190,7 +190,7 @@ dependencies {
 </manifest>
 """,
 
-    # 10. activity_main.xml (логичный и аккуратный интерфейс)
+    # 10. activity_main.xml (полный интерфейс со всеми кнопками)
     "app/src/main/res/layout/activity_main.xml": """<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -268,7 +268,7 @@ dependencies {
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Режим 2: Разовый вброс в кэш (без службы)"
+            android:text="Режим 2: Разовый вброс в кэш"
             android:textSize="13sp"
             android:textColor="#666666"
             android:layout_marginBottom="6dp"/>
@@ -279,7 +279,16 @@ dependencies {
             android:layout_height="54dp"
             android:text="ЗАПИСАТЬ В КЭШ И ВЫКЛЮЧИТЬ"
             android:textSize="14sp"
-            android:backgroundTint="#2E7D32"/>
+            android:backgroundTint="#2E7D32"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/btnOpenDev"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:text="⚙️ ОТКРЫТЬ НАСТРОЙКИ РАЗРАБОТЧИКА"
+            android:textSize="14sp"
+            android:backgroundTint="#455A64"/>
 
     </LinearLayout>
 </ScrollView>
@@ -482,12 +491,13 @@ class LocationService : Service() {
 }
 """,
 
-    # 12. MainActivity.kt
+    # 12. MainActivity.kt (с поддержкой заморозки и кнопкой разработчика)
     "app/src/main/java/com/sysservice/location/MainActivity.kt": """package com.sysservice.location
 
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -499,6 +509,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnStart: Button
     private lateinit var btnStop: Button
     private lateinit var btnFreeze: Button
+    private lateinit var btnOpenDev: Button
     private lateinit var tvStatus: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -509,6 +520,7 @@ class MainActivity : AppCompatActivity() {
         btnStart = findViewById(R.id.btnStart)
         btnStop = findViewById(R.id.btnStop)
         btnFreeze = findViewById(R.id.btnFreeze)
+        btnOpenDev = findViewById(R.id.btnOpenDev)
         tvStatus = findViewById(R.id.tvStatus)
 
         updateUIState(LocationService.isServiceRunning)
@@ -541,7 +553,16 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            Toast.makeText(this, "Точка записана в кэш! Теперь можно отключить мок в настройках.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Точка в кэше! Теперь нажмите кнопку ниже и выберите 'Ничего'.", Toast.LENGTH_LONG).show()
+        }
+
+        btnOpenDev.setOnClickListener {
+            try {
+                val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Не удалось открыть настройки разработчика", Toast.LENGTH_SHORT).show()
+            }
         }
 
         btnStop.setOnClickListener {

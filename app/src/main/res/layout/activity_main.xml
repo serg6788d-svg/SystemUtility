@@ -75,7 +75,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Режим 2: Разовый вброс в кэш (без службы)"
+            android:text="Режим 2: Разовый вброс в кэш"
             android:textSize="13sp"
             android:textColor="#666666"
             android:layout_marginBottom="6dp"/>
@@ -86,7 +86,16 @@
             android:layout_height="54dp"
             android:text="ЗАПИСАТЬ В КЭШ И ВЫКЛЮЧИТЬ"
             android:textSize="14sp"
-            android:backgroundTint="#2E7D32"/>
+            android:backgroundTint="#2E7D32"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/btnOpenDev"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:text="⚙️ ОТКРЫТЬ НАСТРОЙКИ РАЗРАБОТЧИКА"
+            android:textSize="14sp"
+            android:backgroundTint="#455A64"/>
 
     </LinearLayout>
 </ScrollView>

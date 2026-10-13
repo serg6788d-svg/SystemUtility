@@ -3,6 +3,7 @@ package com.sysservice.location
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -14,6 +15,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnStart: Button
     private lateinit var btnStop: Button
     private lateinit var btnFreeze: Button
+    private lateinit var btnOpenDev: Button
     private lateinit var tvStatus: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,6 +26,7 @@ class MainActivity : AppCompatActivity() {
         btnStart = findViewById(R.id.btnStart)
         btnStop = findViewById(R.id.btnStop)
         btnFreeze = findViewById(R.id.btnFreeze)
+        btnOpenDev = findViewById(R.id.btnOpenDev)
         tvStatus = findViewById(R.id.tvStatus)
 
         updateUIState(LocationService.isServiceRunning)
@@ -56,7 +59,16 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            Toast.makeText(this, "Точка записана в кэш! Теперь можно отключить мок в настройках.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Точка в кэше! Теперь нажмите кнопку ниже и выберите 'Ничего'.", Toast.LENGTH_LONG).show()
+        }
+
+        btnOpenDev.setOnClickListener {
+            try {
+                val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Не удалось открыть настройки разработчика", Toast.LENGTH_SHORT).show()
+            }
         }
 
         btnStop.setOnClickListener {
